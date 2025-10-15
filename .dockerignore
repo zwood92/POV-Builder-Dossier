@@ -1,0 +1,14 @@
+# Ignore dependencies
+node_modules/
+
+# Ignore build output
+dist/
+
+# Ignore local development files
+.env
+.vite/
+.idea/
+
+# Ignore version control
+.git
+.gitignore
