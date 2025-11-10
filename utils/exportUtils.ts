@@ -206,8 +206,13 @@ export const exportAsPdf = (result: AnalysisResult, companyName: string) => {
             addText(useCase.problem, { size: 10 });
             addText(`Solution:`, { size: 11, style: 'bold'});
             addText(useCase.solution, { size: 10 });
+            if (useCase.businessValue) {
+                addText(`Business Value:`, { size: 11, style: 'bold'});
+                addText(useCase.businessValue, { size: 10 });
+            }
+           
             y += 10;
-        });
+    });
     }
   
     if (result.outreachTemplates && result.outreachTemplates.length > 0) {
