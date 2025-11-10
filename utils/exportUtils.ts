@@ -138,98 +138,90 @@ export const exportAsDocx = (result: AnalysisResult, companyName: string) => {
 
 // --- PDF Export ---
 export const exportAsPdf = (result: AnalysisResult, companyName: string) => {
-  if (!result.dossier) return; // Dossier with companyName is required for filename
-  const doc = new jsPDF();
-  const pageHeight = doc.internal.pageSize.height;
-  const pageWidth = doc.internal.pageSize.width;
-  const margin = 15;
-  const maxLineWidth = pageWidth - margin * 2;
-  let y = margin;
-  
-  const addText = (text: string, options: { size?: number; style?: 'bold' | 'normal'; isTitle?: boolean; isCentered?: boolean }) => {
-    if (y > pageHeight - margin - 10) { // Add a buffer
-      doc.addPage();
-      y = margin;
-    }
-    const { size = 11, style = 'normal', isTitle = false, isCentered = false } = options;
-    doc.setFontSize(size);
-    doc.setFont('helvetica', style);
-    const splitText = doc.splitTextToSize(text, maxLineWidth);
-    
-    let textX = margin;
-    if (isCentered) {
-        const textWidth = doc.getTextWidth(splitText[0]); // Check first line for centering
-        textX = (pageWidth - textWidth) / 2;
-        if (textX < margin) textX = margin;
+    if (!result.dossier) return; // Dossier with companyName is required for filename
+    const doc = new jsPDF();
+    const pageHeight = doc.internal.pageSize.height;
+    const pageWidth = doc.internal.pageSize.width;
+    const margin = 15;
+    const maxLineWidth = pageWidth - margin * 2;
+    let y = margin;
+
+    const addText = (text: string, options: { size?: number; style?: 'bold' | 'normal'; isTitle?: boolean; isCentered?: boolean }) => {
+        const { size = 11, style = 'normal', isTitle = false, isCentered = false } = options;
+        doc.setFontSize(size);
+        doc.setFont('helvetica', style);
+
+        const splitText = doc.splitTextToSize(text, maxLineWidth);
+
+        const textHeight = doc.getTextDimensions(splitText).h;
+
+        if (y + textHeight > pageHeight - margin) {
+            doc.addPage();
+            y = margin;
+        }
+
+        let textX = margin;
+        if (isCentered) {
+            const textWidth = doc.getTextWidth(splitText[0]); // Check first line for centering
+            textX = (pageWidth - textWidth) / 2;
+            if (textX < margin) textX = margin;
+        }
+
+        doc.text(splitText, textX, y);
+        y += textHeight + (isTitle ? 6 : 4);
+    };
+
+    addText(`Analysis for ${companyName}`, { size: 18, style: 'bold', isTitle: true, isCentered: true });
+    y += 5;
+
+    if (result.dossier && (result.dossier.overview || result.dossier.keyContacts?.length > 0 || result.dossier.recentNews?.length > 0)) {
+      addText('Account Dossier', { size: 16, style: 'bold', isTitle: true });
+      if (result.dossier.overview) {
+          addText('Company Overview', { size: 14, style: 'bold', isTitle: true });
+          addText(result.dossier.overview, { size: 10 });
+          y += 5;
+      }
+      if (result.dossier.keyContacts?.length > 0) {
+          addText('Key Contacts', { size: 14, style: 'bold', isTitle: true });
+          result.dossier.keyContacts.forEach(item => {
+              addText(`• ${item.name} - ${item.role} (${item.email})`, {size: 10});
+          });
+          y += 5;
+      }
+      if (result.dossier.recentNews?.length > 0) {
+          addText('Recent News/Events', { size: 14, style: 'bold', isTitle: true });
+          result.dossier.recentNews.forEach(item => {
+              addText(`• ${item.title} (${item.source} - ${item.date})`, {size: 10, style: 'bold'});
+              addText(item.summary, {size: 9});
+          });
+      }
     }
 
-    doc.text(splitText, textX, y);
-    y += (doc.getTextDimensions(splitText).h) + (isTitle ? 6 : 4);
+    if (result.useCases && result.useCases.length > 0) {
+        y += 10;
+        addText('Relevant Use Cases', { size: 16, style: 'bold', isTitle: true });
+        result.useCases.forEach(useCase => {
+            addText(useCase.title, { size: 14, style: 'bold', isTitle: true });
+            addText(`Problem:`, { size: 11, style: 'bold'});
+            addText(useCase.problem, { size: 10 });
+            addText(`Solution:`, { size: 11, style: 'bold'});
+            addText(useCase.solution, { size: 10 });
+            y += 10;
+        });
+    }
+  
+    if (result.outreachTemplates && result.outreachTemplates.length > 0) {
+        y += 10;
+        addText('Outreach Templates', { size: 16, style: 'bold', isTitle: true });
+        result.outreachTemplates.forEach(template => {
+            addText(`${template.title} (${template.channel})`, { size: 14, style: 'bold', isTitle: true });
+            addText(`Subject:`, { size: 11, style: 'bold'});
+            addText(template.subject, { size: 10 });
+            addText(`Body:`, { size: 11, style: 'bold'});
+            addText(template.body, { size: 10 });
+            y += 10;
+        });
+    }
+
+    doc.save(`${companyName}_POV.pdf`);
   };
-  
-  addText(`Analysis for ${companyName}`, { size: 18, style: 'bold', isTitle: true, isCentered: true });
-  y += 5;
-
-  if (result.dossier && (result.dossier.overview || result.dossier.keyContacts?.length > 0 || result.dossier.recentNews?.length > 0)) {
-    addText('Account Dossier', { size: 16, style: 'bold', isTitle: true });
-    if (result.dossier.overview) {
-        addText('Company Overview', { size: 14, style: 'bold', isTitle: true });
-        addText(result.dossier.overview, { size: 10 });
-        y += 5;
-    }
-    if (result.dossier.keyContacts?.length > 0) {
-        addText('Key Contacts', { size: 14, style: 'bold', isTitle: true });
-        result.dossier.keyContacts.forEach(item => {
-            addText(`• ${item.name} - ${item.role} (${item.email})`, {size: 10});
-        });
-        y += 5;
-    }
-    if (result.dossier.recentNews?.length > 0) {
-        addText('Recent News/Events', { size: 14, style: 'bold', isTitle: true });
-        result.dossier.recentNews.forEach(item => {
-            addText(`• ${item.title} (${item.source} - ${item.date})`, {size: 10, style: 'bold'});
-            addText(item.summary, {size: 9});
-        });
-    }
-  }
-  
-  if (result.useCases && result.useCases.length > 0) {
-    if (y > pageHeight - 60) { 
-        doc.addPage();
-        y = margin;
-    } else {
-        y += 10;
-    }
-    addText('Salesforce Business Use Cases', { size: 16, style: 'bold', isTitle: true });
-    result.useCases.forEach(useCase => {
-        addText(useCase.title, { size: 14, style: 'bold', isTitle: true });
-        addText(`Problem:`, { size: 11, style: 'bold'});
-        addText(useCase.problem, { size: 10 });
-        addText(`Solution:`, { size: 11, style: 'bold'});
-        addText(useCase.solution, { size: 10 });
-        addText(`Business Value:`, { size: 11, style: 'bold'});
-        addText(useCase.businessValue, { size: 10 });
-        y += 10;
-    });
-  }
-
-  if (result.outreachTemplates && result.outreachTemplates.length > 0) {
-    if (y > pageHeight - 60) {
-        doc.addPage();
-        y = margin;
-    } else {
-        y += 10;
-    }
-    addText('Outreach Templates', { size: 16, style: 'bold', isTitle: true });
-    result.outreachTemplates.forEach(template => {
-        addText(`${template.title} (${template.channel})`, { size: 14, style: 'bold', isTitle: true });
-        addText(`Subject:`, { size: 11, style: 'bold'});
-        addText(template.subject, { size: 10 });
-        addText(`Body:`, { size: 11, style: 'bold'});
-        addText(template.body, { size: 10 });
-        y += 10;
-    });
-  }
-
-  doc.save(`${companyName}_POV.pdf`);
-};
